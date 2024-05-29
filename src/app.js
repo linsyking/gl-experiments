@@ -10,8 +10,8 @@ const gl = renderer.gl;
 document.body.appendChild(gl.canvas);
 gl.clearColor(1, 1, 1, 1);
 
-const camera = new Camera(gl, { fov: 15 });
-camera.position.z = 15;
+const camera = new Camera(gl);
+camera.position.z = 5;
 
 function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -36,8 +36,8 @@ const indexedGeometry = new Geometry(gl, {
             0.5,
             0.5,
             0, // vertex 2
-            1,
-            -1,
+            0.5,
+            -0.5,
             0, // vertex 3
         ]),
     },
@@ -69,7 +69,7 @@ const program = new Program(gl, {
 
 const indexedMesh = new Mesh(gl, { geometry: indexedGeometry, program });
 indexedMesh.setParent(scene);
-indexedMesh.position.y = 0.9;
+indexedMesh.position.y = 0;
 
 requestAnimationFrame(update);
 function update(t) {
