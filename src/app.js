@@ -1,7 +1,8 @@
 import { Renderer, Camera, Transform } from "ogl";
-import { genRect, updateRect } from "./rect";
+import { genRect, updateRect } from "./rect/rect";
+import { genPoly, updatePoly } from "./poly/poly";
 
-const renderer = new Renderer();
+const renderer = new Renderer({ antialias: true });
 const gl = renderer.gl;
 document.body.appendChild(gl.canvas);
 gl.clearColor(1, 1, 1, 1);
@@ -19,11 +20,13 @@ resize();
 const scene = new Transform();
 
 genRect(scene, gl);
+genPoly(scene, gl);
 
 requestAnimationFrame(update);
 function update(t) {
     requestAnimationFrame(update);
 
     updateRect(t);
+    updatePoly(t);
     renderer.render({ scene, camera });
 }

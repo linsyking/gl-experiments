@@ -1,29 +1,32 @@
 import { Geometry, Program, Mesh } from "ogl";
 import * as fs from 'fs';
 
-const vertex = fs.readFileSync('src/shader/rect_vert.glsl', 'utf8');
-const fragment = fs.readFileSync('src/shader/rect_frag.glsl', 'utf8');
+const vertex = fs.readFileSync('src/poly/vert.glsl', 'utf8');
+const fragment = fs.readFileSync('src/poly/frag.glsl', 'utf8');
 
 let program;
 
-export function genRect(scene, gl) {
+export function genPoly(scene, gl) {
     // 4 vertices, using 6 indices to designate 2 triangles using the default gl.TRIANGLES draw mode
     const indexedGeometry = new Geometry(gl, {
         position: {
             size: 3,
             data: new Float32Array([
-                -1,
-                1,
+                -1.3,
+                1.5,
                 0, // vertex 0
-                -1,
-                -1,
-                0, // vertex 1
-                1,
-                1,
-                0, // vertex 2
-                1,
-                -1,
+                -0.3,
+                -0.7,
+                0.2, // vertex 1
+                1.2,
+                0.5,
+                0.1, // vertex 2
+                1.5,
+                -0.1,
                 0, // vertex 3
+                1,
+                1,
+                0, // vertex 4
             ]),
         },
         uv: {
@@ -37,11 +40,13 @@ export function genRect(scene, gl) {
                 0, // vertex 2
                 1,
                 0, // vertex 3
+                0.5,
+                0.5, // vertex 3
             ]),
         },
 
         // the indices attribute must use the name 'index' to be treated as an ELEMENT_ARRAY_BUFFER
-        index: { data: new Uint16Array([0, 1, 2, 1, 3, 2]) },
+        index: { data: new Uint16Array([0, 1, 2, 3, 0, 1, 2]) },
     });
 
     program = new Program(gl, {
@@ -53,10 +58,11 @@ export function genRect(scene, gl) {
     });
 
     const indexedMesh = new Mesh(gl, { geometry: indexedGeometry, program });
-
     indexedMesh.setParent(scene);
+    indexedMesh.position.x = -2;
+    indexedMesh.position.y = -1;
 }
 
-export function updateRect(t) {
+export function updatePoly(t) {
     program.uniforms.uTime.value = t * 0.001;
 }
