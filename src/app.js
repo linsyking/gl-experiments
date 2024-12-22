@@ -19,14 +19,21 @@ resize();
 
 const scene = new Transform();
 
-genPoly(scene, gl);
-genRect(scene, gl);
+// genPoly(scene, gl);
+const r1 = genRect(scene, gl, -4, 0);
 
+for (let i = -10; i < 10; i++) {
+    for (let j = -10; j < 10; j++) {
+        genRect(scene, gl, i/3, j/3);
+    }
+}
 requestAnimationFrame(update);
 function update(t) {
     requestAnimationFrame(update);
 
-    updatePoly(t);
-    updateRect(t);
+    // updatePoly(t);
+    updateRect(r1, t);
+
     renderer.render({ scene, camera });
+    scene.remove
 }

@@ -4,25 +4,24 @@ import * as fs from 'fs';
 const vertex = fs.readFileSync('src/rect/vert.glsl', 'utf8');
 const fragment = fs.readFileSync('src/rect/frag.glsl', 'utf8');
 
-let program;
 
-export function genRect(scene, gl) {
+export function genRect(scene, gl, x, y) {
     // 4 vertices, using 6 indices to designate 2 triangles using the default gl.TRIANGLES draw mode
     const indexedGeometry = new Geometry(gl, {
         position: {
             size: 3,
             data: new Float32Array([
-                -1,
-                1,
+                -0.1,
+                0.1,
                 0, // vertex 0
-                -1,
-                -1,
-                0, // vertex 1
-                1,
-                1,
+                -0.1,
+                -0.1,
+                0, // vertex 0.1
+                0.1,
+                0.1,
                 0, // vertex 2
-                1,
-                -1,
+                0.1,
+                -0.1,
                 0, // vertex 3
             ]),
         },
@@ -54,10 +53,11 @@ export function genRect(scene, gl) {
 
     const indexedMesh = new Mesh(gl, { geometry: indexedGeometry, program });
     indexedMesh.setParent(scene);
-    indexedMesh.position.x = -2;
-    indexedMesh.position.y = 1;
+    indexedMesh.position.x = x;
+    indexedMesh.position.y = y;
+    return indexedMesh;
 }
 
-export function updateRect(t) {
-    program.uniforms.uTime.value = t * 0.001;
+export function updateRect(mesh, t) {
+    mesh.program.uniforms.uTime.value = t * 0.001;
 }
