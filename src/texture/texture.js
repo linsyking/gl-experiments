@@ -1,4 +1,7 @@
 const regl = require('regl')()
+import * as fs from 'fs';
+const vertex = fs.readFileSync('src/texture/vert.glsl', 'utf8');
+const fragment = fs.readFileSync('src/texture/frag.glsl', 'utf8');
 
 const drawTexture = async function () {
   const image = new Image();
@@ -6,25 +9,8 @@ const drawTexture = async function () {
   await image.decode();
 
   return regl({
-    frag: `
-        precision mediump float;
-        uniform sampler2D texture;
-        varying vec2 uv;
-        void main () {
-          gl_FragColor = texture2D(texture, uv);
-        }`,
-
-    vert: `
-        precision mediump float;
-        attribute vec2 position;
-        attribute vec2 texc;
-        uniform vec2 offset;
-        varying vec2 uv;
-        void main () {
-          uv = texc;
-          gl_Position = vec4(-position+offset, 0, 1);
-        }`,
-
+    frag: fragment,
+    vert: vertex,
     attributes: {
       texc: [
         1, 1,
