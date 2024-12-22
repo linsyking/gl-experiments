@@ -12,21 +12,22 @@ camera.position.z = 5;
 
 function resize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
-    camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
+    // camera.perspective({ aspect: gl.canvas.width / gl.canvas.height });
+    camera.orthographic();
 }
 window.addEventListener('resize', resize, false);
 resize();
 
 const scene = new Transform();
 
-genPoly(scene, gl);
-genRect(scene, gl);
+// genPoly(scene, gl);
+// genRect(scene, gl);
 
 requestAnimationFrame(update);
 function update(t) {
     requestAnimationFrame(update);
 
-    updatePoly(t);
-    updateRect(t);
+    // updatePoly(t);
+    // updateRect(t);
     renderer.render({ scene, camera });
 }
