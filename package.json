@@ -9,7 +9,6 @@
     "parcel": "^2.12.0"
   },
   "dependencies": {
-    "ogl": "^1.0.7",
     "regl": "^2.1.1"
   }
 }
