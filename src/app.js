@@ -1,7 +1,7 @@
 let regl = null;
 const readFileSync = require('fs').readFileSync;
 
-const renderRect = () => [
+const rect = () => [
     (x) => x
     , regl({
         frag: readFileSync('src/rect/frag.glsl', 'utf8'),
@@ -15,12 +15,12 @@ const renderRect = () => [
         uniforms: {
             off: regl.prop('off'),
             scale: regl.prop('scale'),
-            color: [1, 0, 0]
+            color: regl.prop('color')
         },
         count: 6
     })]
 
-const renderTriangle = () => [
+const triangle = () => [
     (x) => x,
     regl({
         frag: readFileSync('src/triangle/frag.glsl', 'utf8'),
@@ -30,22 +30,18 @@ const renderTriangle = () => [
                 [1, 0, 0],
                 [0, 1, 0],
                 [0, 0, 1]
-            ]),
-            uv: [
-                [0, 0],
-                [1, 0],
-                [0, 1]
-            ]
+            ])
         },
         uniforms: {
             x: regl.prop('x'),
             y: regl.prop('y'),
-            z: regl.prop('z')
+            z: regl.prop('z'),
+            color: regl.prop('color'),
         },
         count: 3
     })]
 
-const renderTexture = () => [
+const simpTexture = () => [
     (x) => { x["texture"] = loadedTextures[x["texture"]]; return x },
     regl({
         frag: readFileSync('src/texture/frag.glsl', 'utf8'),
@@ -77,9 +73,9 @@ const renderTexture = () => [
     })]
 
 const programs = {
-    renderRect,
-    renderTriangle,
-    renderTexture
+    rect,
+    triangle,
+    simpTexture
 }
 
 const loadedPrograms = {};
@@ -124,7 +120,7 @@ async function initTest() {
                 //     z: [0.01 + xof, 0.02 + yof],
                 //     uTime: time + j / num
                 // })
-                renderTexture({
+                simpTexture({
                     texture,
                     offset: [xof, yof]
                 })
@@ -158,11 +154,47 @@ function loadTexture(texture_name, texture_url) {
     }
 }
 
-function loadGLProgram(prog_name) {
-    // Initialize program
-    loadedPrograms[prog_name] = programs[prog_name]()
-    // Response to Elm
+
+function createGLProgram(prog_name, proto) {
+    console.log("Creating program: " + prog_name);
+    const uniforms = proto.uniforms ? proto.uniforms : {};
+    const textureUniformKeys = proto.textureUniformKeys ? proto.textureUniformKeys : [];
+    const olduniforms = structuredClone(uniforms);
+    const initfunc = (x) => {
+        for (let i = 0; i < textureUniformKeys.length; i++) {
+            const key = textureUniformKeys[i];
+            if (key in x) {
+                x[key] = loadedTextures[x[key]];
+            }
+        }
+        for (const key of Object.keys(olduniforms)) {
+            if (!(key in x)) {
+                x[key] = olduniforms[key];
+            }
+        }
+        return x;
+    }
+    for (const key of Object.keys(uniforms)) {
+        uniforms[key] = regl.prop(key);
+    }
+    const genP = {
+        frag: proto.frag,
+        vert: proto.vert,
+        count: proto.count
+    }
+    if (proto.attributes) {
+        genP.attributes = proto.attributes;
+    }
+    if (proto.elements) {
+        genP.elements = proto.elements;
+    }
+    if (proto.uniforms) {
+        genP.uniforms = uniforms;
+    }
+    const program = regl(genP);
+    loadedPrograms[prog_name] = [initfunc, program];
 }
+
 
 let resolver = null;
 
@@ -210,17 +242,22 @@ function start() {
     requestAnimationFrame(step);
 }
 
+function loadGLProgram(prog_name) {
+    // Initialize program
+    loadedPrograms[prog_name] = programs[prog_name]()
+}
+
 function init(canvas, app) {
     ElmApp = app;
     regl = require('regl')(canvas);
-    loadGLProgram('renderTexture');
-    loadGLProgram('renderTriangle');
-    loadGLProgram('renderRect');
+    loadGLProgram('simpTexture');
+    loadGLProgram('triangle');
+    loadGLProgram('rect');
 }
 
-globalThis.elmregl = {}
-globalThis.elmregl.loadTexture = loadTexture
-globalThis.elmregl.loadGLProgram = loadGLProgram
-globalThis.elmregl.setView = setView
-globalThis.elmregl.start = start
-globalThis.elmregl.init = init
+globalThis.ElmREGL = {}
+globalThis.ElmREGL.loadTexture = loadTexture
+globalThis.ElmREGL.createGLProgram = createGLProgram
+globalThis.ElmREGL.setView = setView
+globalThis.ElmREGL.start = start
+globalThis.ElmREGL.init = init
