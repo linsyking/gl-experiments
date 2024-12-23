@@ -1,75 +1,80 @@
 let regl = null;
 const readFileSync = require('fs').readFileSync;
 
-const renderRect = () => regl({
-    frag: readFileSync('src/rect/frag.glsl', 'utf8'),
-    vert: readFileSync('src/rect/vert.glsl', 'utf8'),
-    attributes: {
-        position: regl.buffer([
-            [-1, -1], [+1, +1], [-1, +1],
-            [-1, -1], [+1, -1], [+1, +1]
-        ])
-    },
-    uniforms: {
-        off: regl.prop('off'),
-        scale: regl.prop('scale'),
-        color: [1, 0, 0]
-    },
-    count: 6
-})
+const renderRect = () => [
+    (x) => x
+    , regl({
+        frag: readFileSync('src/rect/frag.glsl', 'utf8'),
+        vert: readFileSync('src/rect/vert.glsl', 'utf8'),
+        attributes: {
+            position: regl.buffer([
+                [-1, -1], [+1, +1], [-1, +1],
+                [-1, -1], [+1, -1], [+1, +1]
+            ])
+        },
+        uniforms: {
+            off: regl.prop('off'),
+            scale: regl.prop('scale'),
+            color: [1, 0, 0]
+        },
+        count: 6
+    })]
 
-const renderTriangle = () => regl({
-    frag: readFileSync('src/triangle/frag.glsl', 'utf8'),
-    vert: readFileSync('src/triangle/vert.glsl', 'utf8'),
-    attributes: {
-        position: regl.buffer([
-            [1, 0, 0],
-            [0, 1, 0],
-            [0, 0, 1]
-        ]),
-        uv: [
-            [0, 0],
-            [1, 0],
-            [0, 1]
-        ]
-    },
-    uniforms: {
-        x: regl.prop('x'),
-        y: regl.prop('y'),
-        z: regl.prop('z'),
-        uTime: regl.prop('uTime')
-    },
-    count: 3
-})
+const renderTriangle = () => [
+    (x) => x,
+    regl({
+        frag: readFileSync('src/triangle/frag.glsl', 'utf8'),
+        vert: readFileSync('src/triangle/vert.glsl', 'utf8'),
+        attributes: {
+            position: regl.buffer([
+                [1, 0, 0],
+                [0, 1, 0],
+                [0, 0, 1]
+            ]),
+            uv: [
+                [0, 0],
+                [1, 0],
+                [0, 1]
+            ]
+        },
+        uniforms: {
+            x: regl.prop('x'),
+            y: regl.prop('y'),
+            z: regl.prop('z')
+        },
+        count: 3
+    })]
 
-const renderTexture = () => regl({
-    frag: readFileSync('src/texture/frag.glsl', 'utf8'),
-    vert: readFileSync('src/texture/vert.glsl', 'utf8'),
-    attributes: {
-        texc: [
-            1, 1,
-            1, 0,
-            0, 0,
-            0, 1,],
-        position: [
-            0.02, 0.02,
-            0.02, -0.02,
-            -0.02, -0.02,
-            -0.02, 0.02,]
-    },
+const renderTexture = () => [
+    (x) => { x["texture"] = loadedTextures[x["texture"]]; return x },
+    regl({
+        frag: readFileSync('src/texture/frag.glsl', 'utf8'),
+        vert: readFileSync('src/texture/vert.glsl', 'utf8'),
+        attributes: {
+            texc: [
+                1, 1,
+                1, 0,
+                0, 0,
+                0, 1,],
+            position: [
+                0.02, 0.02,
+                0.02, -0.02,
+                -0.02, -0.02,
+                -0.02, 0.02,]
+        },
 
-    uniforms: {
-        texture: regl.prop('texture'),
-        offset: regl.prop('offset')
-    },
+        uniforms: {
+            texture: regl.prop('texture'),
+            offset: regl.prop('offset')
+        },
 
-    elements: [
-        0, 1, 2,
-        0, 2, 3
-    ],
+        elements: [
+            0, 1, 2,
+            0, 2, 3
+        ],
 
-    count: 6
-})
+        count: 6
+    })]
 
 const programs = {
     renderRect,
@@ -132,27 +137,31 @@ async function initTest() {
     })
 }
 
-function loadTexture(app, texture_url, texture_name) {
+function loadTexture(texture_name, texture_url) {
     // Initialize textures
     const image = new Image();
     image.src = texture_url;
     image.onload = () => {
         loadedTextures[texture_name] = regl.texture(image);
         // Response to Elm
+        console.log("Texture loaded: " + texture_url)
+        app.ports.textureLoaded.send({
+            success: true,
+            texture: texture_name,
+            width: image.width,
+            height: image.height
+        });
     }
     image.onerror = () => {
         console.error("Error loading texture: " + texture_url)
-        // Response to Elm
+        alert("Error loading texture: " + texture_url)
     }
 }
 
-function loadGLProgram(app, prog_name) {
+function loadGLProgram(prog_name) {
     // Initialize program
     loadedPrograms[prog_name] = programs[prog_name]()
     // Response to Elm
-}
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 let resolver = null;
@@ -171,19 +180,28 @@ function updateElm(delta) {
 
 async function step(t) {
     // regl.poll();
+    // const t1 = performance.now();
     await updateElm(t / 1000);
+    // const t2 = performance.now();
+    // console.log("Time to update Elm: " + (t2 - t1) + "ms");
 
     // Render view
-    for (let i = 0; i < gview.length; i++) {
-        let v = gview[i];
-        if (v.cmd == 0) { // Render commands
-            loadedPrograms[v.program](v.args);
-        } else if (v.cmd == 1) { // REGL commands
-            regl[v.name](v.args);
-        } else {
-            console.error("Unknown command: " + v.cmd);
+    if (gview) {
+        for (let i = 0; i < gview.length; i++) {
+            let v = gview[i];
+            if (v.cmd == 0) { // Render commands
+                const p = loadedPrograms[v.program];
+                p[1](p[0](v.args));
+            } else if (v.cmd == 1) { // REGL commands
+                regl[v.name](v.args);
+            } else {
+                console.error("Unknown command: " + v.cmd);
+            }
         }
     }
+
+    // const t3 = performance.now();
+    // console.log("Time to render view: " + (t3 - t2) + "ms");
     regl._gl.flush();
     requestAnimationFrame(step);
 }
@@ -195,12 +213,9 @@ function start() {
 function init(canvas, app) {
     ElmApp = app;
     regl = require('regl')(canvas);
-    const t1 = performance.now();
-    loadGLProgram(null, 'renderTexture');
-    loadGLProgram(null, 'renderTriangle');
-    loadGLProgram(null, 'renderRect');
-    const t2 = performance.now();
-    console.log("Time to load programs: " + (t2 - t1) + "ms");
+    loadGLProgram('renderTexture');
+    loadGLProgram('renderTriangle');
+    loadGLProgram('renderRect');
 }
 
 globalThis.elmregl = {}
