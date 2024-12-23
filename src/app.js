@@ -1,4 +1,4 @@
-const regl = require('regl')(document.getElementById('myCanvas'))
+let regl = null;
 const readFileSync = require('fs').readFileSync;
 
 const renderRect = () => regl({
@@ -181,8 +181,13 @@ async function start(app) {
     })
 }
 
+function init(canvas) {
+    regl = require('regl')(canvas);
+}
+
 globalThis.elmregl = {}
 globalThis.elmregl.loadTexture = loadTexture
 globalThis.elmregl.loadGLProgram = loadGLProgram
 globalThis.elmregl.setView = setView
 globalThis.elmregl.start = start
+globalThis.elmregl.init = init
