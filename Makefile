@@ -1,3 +1,6 @@
 build:
-	cp test/* dist/
-	pnpm exec parcel src/index.html
+	mkdir -p build
+	pnpm exec browserify -t brfs src/app.js > build/main.js
+
+
+.PHONY: build

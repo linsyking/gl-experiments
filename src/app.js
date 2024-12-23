@@ -1,8 +1,7 @@
-// import * as regl from "regl";
-const regl = require('regl')()
-import { readFileSync } from 'fs';
+const regl = require('regl')(document.getElementById('myCanvas'))
+const readFileSync = require('fs').readFileSync;
 
-const renderRect = regl({
+const renderRect = () => regl({
     frag: readFileSync('src/rect/frag.glsl', 'utf8'),
     vert: readFileSync('src/rect/vert.glsl', 'utf8'),
     attributes: {
@@ -19,7 +18,7 @@ const renderRect = regl({
     count: 6
 })
 
-const renderTriangle = regl({
+const renderTriangle = () => regl({
     frag: readFileSync('src/triangle/frag.glsl', 'utf8'),
     vert: readFileSync('src/triangle/vert.glsl', 'utf8'),
     attributes: {
@@ -43,7 +42,7 @@ const renderTriangle = regl({
     count: 3
 })
 
-const renderTexture = regl({
+const renderTexture = () => regl({
     frag: readFileSync('src/texture/frag.glsl', 'utf8'),
     vert: readFileSync('src/texture/vert.glsl', 'utf8'),
     attributes: {
@@ -72,9 +71,21 @@ const renderTexture = regl({
     count: 6
 })
 
-async function init() {
+const programs = {
+    renderRect,
+    renderTriangle,
+    renderTexture
+}
+
+const loadedPrograms = {};
+
+const loadedTextures = {};
+
+let gview = [];
+
+async function initTest() {
     const image = new Image();
-    image.src = 'enemy.png';
+    image.src = 'test/enemy.png';
     await image.decode();
     const texture = regl.texture(image);
     regl.frame(({ time }) => {
@@ -119,4 +130,59 @@ async function init() {
     })
 }
 
-init()
+function loadTexture(app, texture_url, texture_name) {
+    // Initialize textures
+    const image = new Image();
+    image.src = texture_url;
+    image.onload = () => {
+        loadedTextures[texture_name] = regl.texture(image);
+        // Response to Elm
+    }
+    image.onerror = () => {
+        console.error("Error loading texture: " + texture_url)
+        // Response to Elm
+    }
+}
+
+function loadGLProgram(app, prog_name) {
+    // Initialize program
+    loadedPrograms[prog_name] = programs[prog_name]()
+    // Response to Elm
+}
+
+function setView(view) {
+    gview = view;
+}
+
+async function start(app) {
+    let lastTime = 0;
+    regl.frame(({ time }) => {
+        let delta = time - lastTime;
+        lastTime = time;
+        // regl.clear({
+        //     color: [0, 0, 0, 0],
+        //     depth: 1
+        // })
+        // console.log(time)
+        // Call Elm Update
+        app.ports.reglupdate.send(delta);
+
+        // Render view
+        for (let i = 0; i < gview.length; i++) {
+            let v = gview[i];
+            if (v.cmd == 0) { // Render commands
+                loadedPrograms[v.program](v.args);
+            } else if (v.cmd == 1) { // REGL commands
+                regl[v.name](v.args);
+            } else {
+                console.error("Unknown command: " + v.cmd);
+            }
+        }
+    })
+}
+
+globalThis.elmregl = {}
+globalThis.elmregl.loadTexture = loadTexture
+globalThis.elmregl.loadGLProgram = loadGLProgram
+globalThis.elmregl.setView = setView
+globalThis.elmregl.start = start
