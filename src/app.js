@@ -81,6 +81,8 @@ const loadedPrograms = {};
 
 const loadedTextures = {};
 
+let ElmApp = null;
+
 let gview = [];
 
 async function initTest() {
@@ -149,40 +151,56 @@ function loadGLProgram(app, prog_name) {
     loadedPrograms[prog_name] = programs[prog_name]()
     // Response to Elm
 }
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
-function setView(view) {
+let resolver = null;
+
+async function setView(view) {
     gview = view;
+    resolver();
 }
 
-async function start(app) {
-    let lastTime = 0;
-    regl.frame(({ time }) => {
-        let delta = time - lastTime;
-        lastTime = time;
-        // regl.clear({
-        //     color: [0, 0, 0, 0],
-        //     depth: 1
-        // })
-        // console.log(time)
-        // Call Elm Update
-        app.ports.reglupdate.send(delta);
+function updateElm(delta) {
+    return new Promise((resolve, _) => {
+        resolver = resolve;
+        ElmApp.ports.reglupdate.send(delta);
+    });
+}
 
-        // Render view
-        for (let i = 0; i < gview.length; i++) {
-            let v = gview[i];
-            if (v.cmd == 0) { // Render commands
-                loadedPrograms[v.program](v.args);
-            } else if (v.cmd == 1) { // REGL commands
-                regl[v.name](v.args);
-            } else {
-                console.error("Unknown command: " + v.cmd);
-            }
+async function step(t) {
+    // regl.poll();
+    await updateElm(t / 1000);
+
+    // Render view
+    for (let i = 0; i < gview.length; i++) {
+        let v = gview[i];
+        if (v.cmd == 0) { // Render commands
+            loadedPrograms[v.program](v.args);
+        } else if (v.cmd == 1) { // REGL commands
+            regl[v.name](v.args);
+        } else {
+            console.error("Unknown command: " + v.cmd);
         }
-    })
+    }
+    regl._gl.flush();
+    requestAnimationFrame(step);
 }
 
-function init(canvas) {
+function start() {
+    requestAnimationFrame(step);
+}
+
+function init(canvas, app) {
+    ElmApp = app;
     regl = require('regl')(canvas);
+    const t1 = performance.now();
+    loadGLProgram(null, 'renderTexture');
+    loadGLProgram(null, 'renderTriangle');
+    loadGLProgram(null, 'renderRect');
+    const t2 = performance.now();
+    console.log("Time to load programs: " + (t2 - t1) + "ms");
 }
 
 globalThis.elmregl = {}
