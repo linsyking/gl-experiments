@@ -79,6 +79,12 @@ let ElmApp = null;
 
 let gview = [];
 
+let resolver = null;
+
+let userConfig = {
+    interval: 0
+};
+
 function loadTexture(texture_name, texture_url) {
     // Initialize textures
     const image = new Image();
@@ -155,12 +161,15 @@ function createGLProgram(prog_name, proto) {
     loadedPrograms[prog_name] = [initfunc, program];
 }
 
-let resolver = null;
 
 async function setView(view) {
     gview = view;
     resolver();
 }
+
+// function sleep(ms) {
+//     return new Promise(resolve => setTimeout(resolve, ms));
+// }
 
 function updateElm(delta) {
     return new Promise((resolve, _) => {
@@ -170,7 +179,14 @@ function updateElm(delta) {
 }
 
 async function step(t) {
-    requestAnimationFrame(step);
+    if (userConfig.interval > 0) {
+        // Call step in interval
+        setTimeout(() => {
+            requestAnimationFrame(step);
+        }, userConfig.interval);
+    } else {
+        requestAnimationFrame(step);
+    }
     // regl.poll();
     // const t1 = performance.now();
     await updateElm(t / 1000);
@@ -219,6 +235,12 @@ function init(canvas, app) {
     loadBuiltinGLProgram("simpTexture");
 }
 
+function config(c) {
+    if ("interval" in c) {
+        userConfig.interval = c.interval;
+    }
+}
+
 globalThis.ElmREGL = {}
 globalThis.ElmREGL.loadTexture = loadTexture
 globalThis.ElmREGL.createGLProgram = createGLProgram
@@ -226,3 +248,4 @@ globalThis.ElmREGL.loadGLProgram = loadGLProgram
 globalThis.ElmREGL.setView = setView
 globalThis.ElmREGL.start = start
 globalThis.ElmREGL.init = init
+globalThis.ElmREGL.config = config
