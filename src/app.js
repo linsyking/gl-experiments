@@ -26,16 +26,9 @@ const triangle = () => [
         frag: readFileSync('src/triangle/frag.glsl', 'utf8'),
         vert: readFileSync('src/triangle/vert.glsl', 'utf8'),
         attributes: {
-            position: regl.buffer([
-                [1, 0, 0],
-                [0, 1, 0],
-                [0, 0, 1]
-            ])
+            position: regl.prop('pos')
         },
         uniforms: {
-            x: regl.prop('x'),
-            y: regl.prop('y'),
-            z: regl.prop('z'),
             color: regl.prop('color'),
         },
         count: 3
@@ -86,53 +79,6 @@ let ElmApp = null;
 
 let gview = [];
 
-async function initTest() {
-    const image = new Image();
-    image.src = 'test/enemy.png';
-    await image.decode();
-    const texture = regl.texture(image);
-    regl.frame(({ time }) => {
-        regl.clear({
-            color: [0, 0, 0, 0],
-            depth: 1
-        })
-
-        // console.log(time)
-
-        let num = 40;
-        for (let i = 0; i < num * 2; i++) {
-            for (let j = 0; j < num * 2; j++) {
-                // drawTriangle(-1+i/num+0.02, 1 - j/num-0.03)({
-                //     color: [
-                //         Math.cos(time * 0.001),
-                //         Math.sin(time * 0.0008),
-                //         Math.cos(time * 0.003),
-                //         1
-                //     ],
-                //     offset : [0,0]
-                // })
-                let modd = (time % 4) / 2;
-                let xof = -1 + i / num + modd;
-                let yof = 1 - j / num;
-                // renderTriangle({
-                //     x: [xof, yof],
-                //     y: [0.02 + xof, yof],
-                //     z: [0.01 + xof, 0.02 + yof],
-                //     uTime: time + j / num
-                // })
-                simpTexture({
-                    texture,
-                    offset: [xof, yof]
-                })
-                // renderRect({
-                //     off : [xof,yof],
-                //     scale : [0.01, 0.01]
-                // })
-            }
-        }
-    })
-}
-
 function loadTexture(texture_name, texture_url) {
     // Initialize textures
     const image = new Image();
@@ -156,26 +102,37 @@ function loadTexture(texture_name, texture_url) {
 
 
 function createGLProgram(prog_name, proto) {
+    if (loadedPrograms[prog_name]) {
+        console.error("Program already exists: " + prog_name);
+        return;
+    }
     console.log("Creating program: " + prog_name);
     const uniforms = proto.uniforms ? proto.uniforms : {};
-    const textureUniformKeys = proto.textureUniformKeys ? proto.textureUniformKeys : [];
-    const olduniforms = structuredClone(uniforms);
+    const attributes = proto.attributes ? proto.attributes : {};
+    const uniformTextureKeys = proto.uniformsDynTexture ? Object.keys(proto.uniformsDynTexture) : [];
     const initfunc = (x) => {
-        for (let i = 0; i < textureUniformKeys.length; i++) {
-            const key = textureUniformKeys[i];
+        for (let i = 0; i < uniformTextureKeys.length; i++) {
+            const key = uniformTextureKeys[i];
             if (key in x) {
                 x[key] = loadedTextures[x[key]];
             }
         }
-        for (const key of Object.keys(olduniforms)) {
-            if (!(key in x)) {
-                x[key] = olduniforms[key];
-            }
-        }
         return x;
     }
-    for (const key of Object.keys(uniforms)) {
-        uniforms[key] = regl.prop(key);
+    if (proto.uniformsDyn) {
+        for (const key of Object.keys(proto.uniformsDyn)) {
+            uniforms[key] = regl.prop(proto.uniformsDyn[key]);
+        }
+    }
+    if (proto.uniformsDynTexture) {
+        for (const key of Object.keys(proto.uniformsDynTexture)) {
+            uniforms[key] = regl.prop(proto.uniformsDynTexture[key]);
+        }
+    }
+    if (proto.attributesDyn) {
+        for (const key of Object.keys(proto.attributesDyn)) {
+            attributes[key] = regl.prop(proto.attributesDyn[key]);
+        }
     }
     const genP = {
         frag: proto.frag,
@@ -183,7 +140,7 @@ function createGLProgram(prog_name, proto) {
         count: proto.count
     }
     if (proto.attributes) {
-        genP.attributes = proto.attributes;
+        genP.attributes = attributes;
     }
     if (proto.elements) {
         genP.elements = proto.elements;
@@ -191,10 +148,12 @@ function createGLProgram(prog_name, proto) {
     if (proto.uniforms) {
         genP.uniforms = uniforms;
     }
+    if (proto.primitive) {
+        genP.primitive = proto.primitive;
+    }
     const program = regl(genP);
     loadedPrograms[prog_name] = [initfunc, program];
 }
-
 
 let resolver = null;
 
@@ -211,6 +170,7 @@ function updateElm(delta) {
 }
 
 async function step(t) {
+    requestAnimationFrame(step);
     // regl.poll();
     // const t1 = performance.now();
     await updateElm(t / 1000);
@@ -235,29 +195,34 @@ async function step(t) {
     // const t3 = performance.now();
     // console.log("Time to render view: " + (t3 - t2) + "ms");
     regl._gl.flush();
-    requestAnimationFrame(step);
 }
 
 function start() {
     requestAnimationFrame(step);
 }
 
-function loadGLProgram(prog_name) {
+function loadGLProgram(prog_name, f) {
     // Initialize program
-    loadedPrograms[prog_name] = programs[prog_name]()
+    loadedPrograms[prog_name] = f(regl);
+}
+
+function loadBuiltinGLProgram(prog_name) {
+    // Initialize program
+    loadedPrograms[prog_name] = programs[prog_name]();
 }
 
 function init(canvas, app) {
     ElmApp = app;
     regl = require('regl')(canvas);
-    loadGLProgram('simpTexture');
-    loadGLProgram('triangle');
-    loadGLProgram('rect');
+    loadBuiltinGLProgram("rect");
+    loadBuiltinGLProgram("triangle");
+    loadBuiltinGLProgram("simpTexture");
 }
 
 globalThis.ElmREGL = {}
 globalThis.ElmREGL.loadTexture = loadTexture
 globalThis.ElmREGL.createGLProgram = createGLProgram
+globalThis.ElmREGL.loadGLProgram = loadGLProgram
 globalThis.ElmREGL.setView = setView
 globalThis.ElmREGL.start = start
 globalThis.ElmREGL.init = init
